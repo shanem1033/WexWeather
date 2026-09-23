@@ -13,6 +13,8 @@ httpx==0.28.1
 httpx2==2.13.1
 idna==3.20
 jiter==0.17.0
+psycopg==3.3.6
+psycopg-binary==3.3.6
 pydantic==2.13.5
 pydantic_core==2.46.5
 python-dotenv==1.2.3
@@ -21,4 +23,5 @@ starlette==1.7.0
 truststore==0.10.4
 typing-inspection==0.4.4
 typing_extensions==4.16.0
+tzdata==2026.4
 uvicorn==0.53.0
