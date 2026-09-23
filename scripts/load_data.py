@@ -30,6 +30,7 @@ def to_float(value):
     return float(value) if value else None
 
 def read_rows(path):
+    rows = []
     with open(path, newline="", encoding="utf-8", errors="replace") as f:
         # skip notes at top until reach header row
         for line in f:
@@ -42,7 +43,7 @@ def read_rows(path):
             day = datetime.strptime(row[COL_DATE], "%d-%b-%Y").date()
             if day < START_DATE:
                 continue
-            yield (
+            rows.append((
                 STATION["station_id"],
                 day,
                 to_float(row[COL_MAXTP]),
@@ -50,10 +51,11 @@ def read_rows(path):
                 to_float(row[COL_RAIN]),
                 to_float(row[COL_WDSP]),
                 to_float(row[COL_HG]),
-            )
+            ))
+    return rows
 
 def main():
-    rows = list(read_rows(CSV_PATH))
+    rows = read_rows(CSV_PATH)
 
     with psycopg.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
