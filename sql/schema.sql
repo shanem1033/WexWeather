@@ -14,8 +14,5 @@ CREATE TABLE IF NOT EXISTS daily_weather (
     rain_mm         REAL,
     wind_speed_kt   REAL,
     max_gust_kt     REAL,
-    sunshine_hours  REAL,
     PRIMARY KEY (station_id, date)
 );
-
-ALTER TABLE daily_weather DROP COLUMN sunshine_hours;
