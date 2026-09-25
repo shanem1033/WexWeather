@@ -16,3 +16,16 @@ CREATE TABLE IF NOT EXISTS daily_weather (
     max_gust_kt     REAL,
     PRIMARY KEY (station_id, date)
 );
+
+CREATE TABLE IF NOT EXISTS daily_forecast (
+    station_id      INTEGER NOT NULL REFERENCES stations(station_id),
+    date            DATE NOT NULL,
+    max_temp        REAL,
+    min_temp        REAL,
+    rain_mm         REAL,
+    wind_speed_kt   REAL,
+    max_gust_kt     REAL,
+    hours           INTEGER NOT NULL,
+    fetched_at      TIMESTAMPZ NOT NULL DEFAULT now(), 
+    PRIMARY KEY (station_id, date)
+);

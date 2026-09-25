@@ -53,3 +53,19 @@ def get_day_stats(month, day, station_id=1775):
                 """,
                 {"station_id": station_id, "month": month, "day": day},
         ).fetchone()
+
+def save_forecast(summary, station_id=1775):
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO daily_forecast
+                (station_id, date, max_temp, min_temp, rain_mm,
+                 wind_speed_kt, max_gust_kt, hours)
+            VALUES
+                (%(station_id)s, %(date)s, %(max_temp)s, %(min_temp)s, %(rain_mm)s,
+                 %(wind_speed_kt)s, %(max_gust_kt)s, %(hours)s)
+            ON CONFLICT (station_id, date) DO NOTHING
+            """,
+            {**summary, "station_id": station_id},
+        )
+        return cur.rowcount == 1
