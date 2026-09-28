@@ -26,7 +26,7 @@ def get_history_for_day(month, day, station_id=1775):
     with get_connection() as conn:
         return conn.execute(
             """
-            SELECT date, max_temp, min_temp, rain_mm, wind_speed_kt, max_gust_kt, sunshine_hours
+            SELECT date, max_temp, min_temp, rain_mm, wind_speed_kt, max_gust_kt
             FROM daily_weather
             WHERE station_id = %(station_id)s
                 AND EXTRACT(MONTH FROM date) = %(month)s

@@ -26,6 +26,6 @@ CREATE TABLE IF NOT EXISTS daily_forecast (
     wind_speed_kt   REAL,
     max_gust_kt     REAL,
     hours           INTEGER NOT NULL,
-    fetched_at      TIMESTAMPZ NOT NULL DEFAULT now(), 
+    fetched_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (station_id, date)
 );
