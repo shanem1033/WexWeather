@@ -1,0 +1,5 @@
+# schtasks only accepts UTF-16 task XML, but git treats UTF-16 as binary
+# and cannot diff it. working-tree-encoding stores the file as UTF-8 in the
+# repo (so diffs work) and checks it out as UTF-16 (so schtasks works).
+# UTF-16 rather than UTF-16LE: the file carries a BOM, and UTF-16LE means none.
+task/*.xml text working-tree-encoding=UTF-16 eol=CRLF
