@@ -54,6 +54,21 @@ def get_day_stats(month, day, station_id=1775):
                 {"station_id": station_id, "month": month, "day": day},
         ).fetchone()
 
+def get_forecast(day, station_id=1775):
+    """Read back the saved forecast for one day, or None if none is saved."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT date, max_temp, min_temp, rain_mm, wind_speed_kt, max_gust_kt,
+                   hours, fetched_at
+            FROM daily_forecast
+            WHERE station_id = %(station_id)s
+                AND date = %(day)s
+            """,
+            {"station_id": station_id, "day": day},
+        ).fetchone()
+
+
 def save_forecast(summary, station_id=1775):
     with get_connection() as conn:
         cur = conn.execute(
