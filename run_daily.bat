@@ -6,6 +6,11 @@ REM %~dp0 is this file's own folder, so the job works from any
 REM working directory. /d also handles a drive change.
 cd /d "%~dp0"
 
+REM Windows defaults Python's stdout to cp1252, which mangles accented output
+REM and raises UnicodeEncodeError on anything outside it - enough to kill the
+REM job after its real work has already succeeded. Force UTF-8.
+set PYTHONUTF8=1
+
 if not exist logs mkdir logs
 
 echo. >> logs\forecast.log

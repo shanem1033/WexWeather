@@ -1,19 +1,26 @@
 # WexWeather
 
-A local weather app for Co. Wexford, Ireland. It combines 10 years of historical weather data with today's forecast, and uses the Claude API to highlight anything interesting about today's weather compared with the past decade.
+A local weather app for Co. Wexford, Ireland. It combines 10 years of historical weather data with tomorrow's forecast, and uses a language model to highlight anything interesting about the forecast compared with the past decade.
 
-> **Work in progress.** The database, data pipeline, forecast integration and daily job are complete. The AI summary and frontend are still to come. See the [Roadmap](#roadmap).
+> **Work in progress.** The database, data pipeline, forecast integration, nightly job and AI summaries are complete. A web endpoint for the summary and a frontend are still to come. See the [Roadmap](#roadmap).
 
 ## What it does
 
 - Stores 10+ years of daily weather records (max/min temperature, rainfall, wind speed and gusts) from Met Éireann's Johnstown Castle II station in Co. Wexford
 - Serves historical statistics through a REST API, such as how a given date has looked across the years
 - Fetches tomorrow's forecast from Met Éireann every night and stores it alongside the historical record
-- *(Planned)* Generates a short summary of what's notable about the forecast, e.g. *"Today's high of 21°C would make it the warmest 23rd of September in a decade."*
+- Generates a one-sentence summary of what's notable about the forecast, e.g. *"Wexford expects a record-breaking max temperature of 17.1C and top gust of 42kt on 29 September 2026."*
+- Picks one positive historical event that happened on the same calendar date
 
-### How the AI summary works
+### How the AI summaries work
 
-The app never asks Claude about the weather directly. Instead, it calculates the real statistics itself (today's forecast alongside the historical record for this date) and passes those numbers to Claude to interpret. Claude only describes facts it has been given, so it can't make up weather data.
+**The model is never asked a question it could answer from memory.** It is only ever handed real data and asked to phrase it.
+
+For the weather, the app does the arithmetic itself. It reads the saved forecast, reads the historical record for that calendar date, and works out in Python where the forecast ranks among those years — including which year holds the record and what it was. Only those finished numbers reach the model, which chooses the words. It cannot get a fact wrong because it is not the source of any fact.
+
+The same applies to the historical event. Rather than asking the model what happened on this date — a well-known way to get confident, wrong answers — the app fetches the real list of events for that date and asks the model to pick one positive entry from it and write it up.
+
+This also means the summary degrades safely. If the model is unavailable, the forecast is still saved and the statistics are still served; you lose a sentence, not the pipeline.
 
 ## Tech stack
 
@@ -23,7 +30,7 @@ The app never asks Claude about the weather directly. Instead, it calculates the
 | API | FastAPI |
 | Database | PostgreSQL 18 |
 | Database driver | psycopg 3 |
-| AI | Claude API (Anthropic) |
+| AI | Gemini API (`google-genai`, free tier) |
 | HTTP client | httpx |
 | Scheduling | Windows Task Scheduler |
 
@@ -137,7 +144,10 @@ The scheduled task itself is committed as `task/wexweather_daily.xml`, so the sc
 
    ```
    DATABASE_URL=postgresql://wexweather_app:your-password@localhost:5432/wexweather
+   GEMINI_API_KEY=your-key-here
    ```
+
+   The Gemini key comes from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) and needs no card. It is only required for the summaries — everything else runs without it. The free tier allows 20 requests per day per model, against the two per night this app uses.
 
 4. **Create the tables and load the data**
 
@@ -176,6 +186,17 @@ The scheduled task itself is committed as `task/wexweather_daily.xml`, so the sc
 
    On macOS or Linux, schedule `python -m scripts.fetch_forecast` with cron instead. The job itself knows nothing about who runs it, so only the scheduler differs.
 
+7. **Generate a summary**
+
+   ```bash
+   python -m app.summary              # tomorrow
+   python -m app.summary 2026-09-29   # a specific date
+   ```
+
+   This prints the facts given to the model, then the two sentences it produced. Seeing the facts first is the point: if a number there is wrong, no amount of prompt wording will fix it.
+
+   Summaries are not yet wired into the nightly job or exposed as an endpoint — `python -m app.summary` is currently the only way to run them.
+
 ## API endpoints
 
 | Method | Path | Description |
@@ -190,7 +211,9 @@ WexWeather/
 ├── app/
 │   ├── main.py               # FastAPI endpoints only
 │   ├── db.py                 # All PostgreSQL code
-│   └── forecast.py           # All Met Éireann forecast code
+│   ├── forecast.py           # All Met Éireann forecast code
+│   ├── summary.py            # Ranking, fact rendering, model calls
+│   └── onthisday.py          # Historical events for a calendar date
 ├── data/
 │   ├── wexford_daily.csv     # Met Éireann daily history (Johnstown Castle II)
 │   └── sample_forecast.xml   # Saved forecast, used as a fixed test file
@@ -206,7 +229,7 @@ WexWeather/
 └── README.md
 ```
 
-Code is organised by what it knows about: anything that knows SQL lives in `db.py`, anything that knows about Met Éireann or XML lives in `forecast.py`, and anything that knows about URLs and HTTP responses lives in `main.py`.
+Code is organised by what it knows about: anything that knows SQL lives in `db.py`, anything that knows about Met Éireann or XML lives in `forecast.py`, anything that knows about the language model lives in `summary.py`, and anything that knows about URLs and HTTP responses lives in `main.py`. A module that knows about a new external source gets its own file, which is why `onthisday.py` is separate.
 
 ## Roadmap
 
@@ -215,7 +238,9 @@ Code is organised by what it knows about: anything that knows SQL lives in `db.p
 - [x] API endpoints for historical statistics
 - [x] Today's forecast integration
 - [x] Nightly scheduled job
-- [ ] Claude-generated "what's interesting today" summary
+- [x] AI-generated "what's interesting today" summary
+- [x] Positive historical event for the date
+- [ ] Endpoint to serve the summary
 - [ ] Simple frontend
 - [ ] Deployment
 
@@ -224,3 +249,5 @@ Code is organised by what it knows about: anything that knows SQL lives in `db.p
 Weather data © **Met Éireann**, licensed under [Creative Commons Attribution 4.0 (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/). The data has been filtered (2016 onwards) and restructured for this project. Met Éireann does not accept any liability for errors or omissions in the data.
 
 Forecast data is retrieved from Met Éireann's open location forecast API, also under CC BY 4.0. The service is provided on a best-effort basis with no guarantee of availability. Met Éireann requires that any public website displaying its forecasts also displays its weather warnings.
+
+Historical "on this day" events come from Wikipedia via [byabbe.se](https://byabbe.se/on-this-day/), which serves them as JSON without requiring an API key. Wikipedia text is available under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Neither service offers a guarantee of availability, so the app treats a missing event as an ordinary outcome rather than an error.
