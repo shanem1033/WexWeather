@@ -84,3 +84,31 @@ def save_forecast(summary, station_id=1775):
             {**summary, "station_id": station_id},
         )
         return cur.rowcount == 1
+
+def get_summary(day, station_id=1775):
+    """Read back the saved summary for one day, or None if none is saved."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT weather_summary, on_this_day, model, generated_at
+            FROM daily_summary
+            WHERE station_id = %(station_id)s
+                AND date = %(day)s
+            """,
+            {"station_id": station_id, "day": day},
+        ).fetchone()
+
+def save_summary(summary, station_id=1775):
+    """Save one day's summaries. Returns True if a row was inserted."""
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO daily_summary
+                (station_id, date, weather_summary, on_this_day, model)
+            VALUES
+                (%(station_id)s, %(date)s, %(weather_summary)s, %(on_this_day)s, %(model)s)
+            ON CONFLICT (station_id, date) DO NOTHING
+            """,
+            {**summary, "station_id": station_id},
+        )
+        return cur.rowcount == 1

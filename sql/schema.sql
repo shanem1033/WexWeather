@@ -29,3 +29,13 @@ CREATE TABLE IF NOT EXISTS daily_forecast (
     fetched_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (station_id, date)
 );
+
+CREATE TABLE IF NOT EXISTS daily_summary (
+    station_id      INTEGER NOT NULL REFERENCES stations(station_id),
+    date            DATE NOT NULL,
+    weather_summary TEXT,
+    on_this_day     TEXT,
+    model           TEXT NOT NULL,
+    generated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (station_id, date)
+);
