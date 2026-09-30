@@ -22,6 +22,7 @@
     <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
     <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
     <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <WakeToRun>true</WakeToRun>
     <ExecutionTimeLimit>PT10M</ExecutionTimeLimit>
     <Enabled>true</Enabled>
   </Settings>
