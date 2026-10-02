@@ -6,13 +6,22 @@ from app.forecast import fetch_forecast_xml, parse_forecast, summarise_day
 LAT, LON = 52.298, -6.497  # Johnstown Castle II
 
 
+class PartialDay(Exception):
+    """The forecast has fewer than 24 readings for the requested day.
+
+    Raised rather than exiting, so the caller decides whether that is fatal.
+    The nightly job turns it into a non-zero exit; the interactive report
+    prints it and carries on to show what is already stored.
+    """
+
+
 def fetch_and_save_forecast(day):
     """Fetch the forecast and save `day`. Returns True if a row was written."""
     instants, rain = parse_forecast(fetch_forecast_xml(LAT, LON))
     forecast = summarise_day(instants, rain, day)
 
     if forecast["hours"] < 24:
-        raise SystemExit(f"Only {forecast['hours']} hours for {day}, not saving")
+        raise PartialDay(f"Only {forecast['hours']} hours for {day}, not saving")
 
     if db.save_forecast(forecast):
         print(f"Saved forecast for {day}: {forecast}")
@@ -53,7 +62,12 @@ def generate_and_save_summaries(day):
 
 def main():
     tomorrow = datetime.now(timezone.utc).date() + timedelta(days=1)
-    fetch_and_save_forecast(tomorrow)
+
+    try:
+        fetch_and_save_forecast(tomorrow)
+    except PartialDay as error:
+        raise SystemExit(str(error))
+
     generate_and_save_summaries(tomorrow)
 
 
