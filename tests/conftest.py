@@ -3,12 +3,10 @@
 Two rules this suite keeps to:
 
 1. No network. Nothing here calls Met Eireann, Wikipedia or the language model.
-   The Gemini free tier allows 20 requests a day; a test suite that used it
-   would exhaust the quota the app depends on.
 
 2. Writes happen against the real development database, because db.py opens a
-   connection per call and so cannot be wrapped in an outer transaction. Tests
-   that write use a sentinel date real data will never occupy, and delete it
+   connection per call and so cannot be wrapped in an outer transaction.
+   Tests that write use a sentinel date real data will never occupy, and delete it
    before and after.
 """
 
