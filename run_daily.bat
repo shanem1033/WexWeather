@@ -1,6 +1,6 @@
 @echo off
 REM Daily forecast job. Run by Task Scheduler around 23:00.
-REM Saves tomorrow's Met Eireann forecast to daily_forecast.
+REM Saves the next two days' Met Eireann forecasts and the first day's summary.
 
 REM %~dp0 is this file's own folder, so the job works from any
 REM working directory. /d also handles a drive change.

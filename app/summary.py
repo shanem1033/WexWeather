@@ -93,7 +93,7 @@ def rank_against_history(value, rows, field, direction="high"):
 
 
 def build_context(day):
-    forecast = db.get_forecast(day)
+    forecast = db.get_today_forecast(day)
     if forecast is None:
         return None
 

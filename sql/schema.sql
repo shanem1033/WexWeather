@@ -17,7 +17,23 @@ CREATE TABLE IF NOT EXISTS daily_weather (
     PRIMARY KEY (station_id, date)
 );
 
-CREATE TABLE IF NOT EXISTS daily_forecast (
+-- Saved the night before `date` and shown as that day's forecast. The only
+-- forecast the summaries are built from.
+CREATE TABLE IF NOT EXISTS forecast_today (
+    station_id      INTEGER NOT NULL REFERENCES stations(station_id),
+    date            DATE NOT NULL,
+    max_temp        REAL,
+    min_temp        REAL,
+    rain_mm         REAL,
+    wind_speed_kt   REAL,
+    max_gust_kt     REAL,
+    hours           INTEGER NOT NULL,
+    fetched_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (station_id, date)
+);
+
+-- Saved two nights before `date` and only ever shown as "tomorrow".
+CREATE TABLE IF NOT EXISTS forecast_tomorrow (
     station_id      INTEGER NOT NULL REFERENCES stations(station_id),
     date            DATE NOT NULL,
     max_temp        REAL,

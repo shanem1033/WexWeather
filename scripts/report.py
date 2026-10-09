@@ -1,16 +1,9 @@
-"""One command: pull the latest forecast, summarise it, and show the report.
+"""One command: run the nightly job now, then show the report.
 
-The pieces already existed - this adds only the display, plus a date argument
-so the pipeline can be exercised without waiting for midnight.
+The job saves forecasts for the next two days, never today, so a run shows its
+results from tomorrow onwards. The date argument shows any stored day.
 
-Two things worth knowing about the shape of this:
-
-Met Eireann's forecast starts at the current hour, so today always comes back
-with fewer than 24 readings and the `hours < 24` guard refuses it. The day this
-can *produce* is tomorrow; the day it *shows* is today. That asymmetry is the
-constraint, not a bug.
-
-The display reads back from the database rather than using the values produce()
+The display reads back from the database rather than using the values the job
 just computed. `--show-only` is then the same code path, and a report that
 looks right means the stored data is right - which is what the web layer serves.
 """
@@ -20,11 +13,7 @@ import textwrap
 from datetime import date, datetime, timedelta, timezone
 
 from app import db
-from scripts.fetch_forecast import (
-    PartialDay,
-    fetch_and_save_forecast,
-    generate_and_save_summaries,
-)
+from scripts.fetch_forecast import run
 
 LABEL_WIDTH = 15
 WRAP_WIDTH = 78
@@ -54,63 +43,68 @@ def _block(label, text):
     )
 
 
+def _forecast_block(label, forecast):
+    """The three lines of numbers for one stored forecast row."""
+    return "\n".join([
+        _block(label, f"max {_number(forecast['max_temp'], 'C')}   "
+                      f"min {_number(forecast['min_temp'], 'C')}"),
+        _block("", f"rain {_number(forecast['rain_mm'], 'mm')}   "
+                   f"wind {_number(forecast['wind_speed_kt'], 'kt', 0)}   "
+                   f"gust {_number(forecast['max_gust_kt'], 'kt', 0)}"),
+        _block("", f"from {forecast['hours']} hourly readings, "
+                   f"fetched {forecast['fetched_at']:%d %b %H:%M}"),
+    ])
+
+
 def render_report(day):
     """Print the stored report for `day`. Reads the database; no network."""
-    forecast = db.get_forecast(day)
+    forecast = db.get_today_forecast(day)
     summary = db.get_summary(day)
+    tomorrow = db.get_tomorrow_forecast(day + timedelta(days=1))
 
     print()
     print(f"WexWeather - {day:%A} {day.day} {day:%B %Y}")
     print()
 
-    if forecast is None and summary is None:
+    if forecast is None and summary is None and tomorrow is None:
         print(f"  Nothing stored for {day}.")
         print()
         return
 
     if forecast is None:
-        # generate_and_save_summaries bails when there is no forecast, so this
-        # should be unreachable. Printing it beats crashing on it.
         print(_block("Forecast", "No forecast stored for this day."))
     else:
-        print(_block("Forecast", f"max {_number(forecast['max_temp'], 'C')}   "
-                                 f"min {_number(forecast['min_temp'], 'C')}"))
-        print(_block("", f"rain {_number(forecast['rain_mm'], 'mm')}   "
-                         f"wind {_number(forecast['wind_speed_kt'], 'kt', 0)}   "
-                         f"gust {_number(forecast['max_gust_kt'], 'kt', 0)}"))
-        print(_block("", f"from {forecast['hours']} hourly readings, "
-                         f"fetched {forecast['fetched_at']:%d %b %H:%M}"))
-
+        print(_forecast_block("Forecast", forecast))
     print()
 
     if summary is None:
         print(_block("Summary", "No summary generated for this day."))
+    else:
+        print(_block("Summary", summary["weather_summary"] or "Not generated."))
         print()
-        return
-
-    print(_block("Summary", summary["weather_summary"] or "Not generated."))
-    print()
-    print(_block("On this day", summary["on_this_day"] or "Not generated."))
-    print()
-    print(_block("", f"{summary['model']}, generated "
-                     f"{summary['generated_at']:%d %b %H:%M}"))
+        print(_block("On this day", summary["on_this_day"] or "Not generated."))
+        print()
+        print(_block("", f"{summary['model']}, generated "
+                         f"{summary['generated_at']:%d %b %H:%M}"))
     print()
 
+    if tomorrow is None:
+        print(_block("Tomorrow", "No forecast stored for tomorrow."))
+    else:
+        print(_forecast_block("Tomorrow", tomorrow))
+    print()
 
-def produce(day):
-    """Fetch, save and summarise `day`. Returns True if both steps ran.
 
-    A partial day is reported and swallowed: the point of this command is to
-    show the report, so refusing to save must not stop the display.
+def produce(today):
+    """Run the nightly job as of `today`. Returns True if nothing was refused.
+
+    Problems are printed, not raised: the point of this command is to show
+    the report, so a refused day must not stop the display.
     """
-    try:
-        fetch_and_save_forecast(day)
-    except PartialDay as error:
-        print(error)
-        return False
-
-    generate_and_save_summaries(day)
-    return True
+    problems = run(today)
+    for problem in problems:
+        print(problem)
+    return not problems
 
 
 def main(argv=None):
@@ -121,7 +115,7 @@ def main(argv=None):
         "day",
         nargs="?",
         type=date.fromisoformat,
-        help="ISO date, e.g. 2026-10-03. Default: produce tomorrow, show today.",
+        help="ISO date to show, e.g. 2026-10-03. Default: today.",
     )
     parser.add_argument(
         "--show-only",
@@ -136,7 +130,7 @@ def main(argv=None):
         render_report(args.day or today)
         return 0
 
-    produce(args.day or (today + timedelta(days=1)))
+    produce(today)
     render_report(args.day or today)
 
     # Always 0, unlike the nightly job: a partial day is information here, not

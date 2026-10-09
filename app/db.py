@@ -1,5 +1,6 @@
 # This file is the only place where the app directly connects to the DB, all other files call these functions and get plain python values back
 import psycopg
+from psycopg import sql
 from psycopg.rows import dict_row
 
 from app.config import DATABASE_URL, STATION_ID
@@ -85,35 +86,59 @@ def save_weather_days(days):
             return cur.rowcount
 
 
-def get_forecast(day, station_id=STATION_ID):
-    """Read back the saved forecast for one day, or None if none is saved."""
-    with get_connection() as conn:
-        return conn.execute(
-            """
-            SELECT date, max_temp, min_temp, rain_mm, wind_speed_kt, max_gust_kt,
-                   hours, fetched_at
-            FROM daily_forecast
-            WHERE station_id = %(station_id)s
-                AND date = %(day)s
-            """,
-            {"station_id": station_id, "day": day},
-        ).fetchone()
+def get_today_forecast(day, station_id=STATION_ID):
+    """The forecast saved the night before `day`, or None if none is saved."""
+    return _get_forecast("forecast_today", day, station_id)
 
 
-def save_forecast(summary, station_id=STATION_ID):
+def save_today_forecast(forecast, station_id=STATION_ID):
+    """Save the forecast to show on its own day. Returns True if a row was inserted."""
+    return _save_forecast("forecast_today", forecast, station_id)
+
+
+def get_tomorrow_forecast(day, station_id=STATION_ID):
+    """The forecast saved two nights before `day`, or None if none is saved."""
+    return _get_forecast("forecast_tomorrow", day, station_id)
+
+
+def save_tomorrow_forecast(forecast, station_id=STATION_ID):
+    """Save the forecast to show the day before. Returns True if a row was inserted."""
+    return _save_forecast("forecast_tomorrow", forecast, station_id)
+
+
+# Both forecast tables have the same columns, so one query serves both.
+# sql.Identifier quotes the table name safely; a %(name)s parameter can only
+# stand in for a value, never for a table.
+def _get_forecast(table, day, station_id):
+    query = sql.SQL(
+        """
+        SELECT date, max_temp, min_temp, rain_mm, wind_speed_kt, max_gust_kt,
+               hours, fetched_at
+        FROM {table}
+        WHERE station_id = %(station_id)s
+            AND date = %(day)s
+        """
+    ).format(table=sql.Identifier(table))
+
     with get_connection() as conn:
-        cur = conn.execute(
-            """
-            INSERT INTO daily_forecast
-                (station_id, date, max_temp, min_temp, rain_mm,
-                 wind_speed_kt, max_gust_kt, hours)
-            VALUES
-                (%(station_id)s, %(date)s, %(max_temp)s, %(min_temp)s, %(rain_mm)s,
-                 %(wind_speed_kt)s, %(max_gust_kt)s, %(hours)s)
-            ON CONFLICT (station_id, date) DO NOTHING
-            """,
-            {**summary, "station_id": station_id},
-        )
+        return conn.execute(query, {"station_id": station_id, "day": day}).fetchone()
+
+
+def _save_forecast(table, forecast, station_id):
+    query = sql.SQL(
+        """
+        INSERT INTO {table}
+            (station_id, date, max_temp, min_temp, rain_mm,
+             wind_speed_kt, max_gust_kt, hours)
+        VALUES
+            (%(station_id)s, %(date)s, %(max_temp)s, %(min_temp)s, %(rain_mm)s,
+             %(wind_speed_kt)s, %(max_gust_kt)s, %(hours)s)
+        ON CONFLICT (station_id, date) DO NOTHING
+        """
+    ).format(table=sql.Identifier(table))
+
+    with get_connection() as conn:
+        cur = conn.execute(query, {**forecast, "station_id": station_id})
         return cur.rowcount == 1
 
 

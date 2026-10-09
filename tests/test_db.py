@@ -15,7 +15,8 @@ def test_every_read_function_runs():
     assert db.get_data_range()["days"] > 0
     assert isinstance(db.get_history_for_day(9, 29), list)
     assert db.get_day_stats(9, 29) is not None
-    assert db.get_forecast(NEVER_SAVED_DAY) is None
+    assert db.get_today_forecast(NEVER_SAVED_DAY) is None
+    assert db.get_tomorrow_forecast(NEVER_SAVED_DAY) is None
     assert db.get_summary(NEVER_SAVED_DAY) is None
 
 
@@ -29,8 +30,8 @@ def test_history_rows_carry_every_expected_column():
 def test_save_forecast_reports_whether_it_inserted(test_day, a_forecast):
     """Regression: this once returned a Cursor, which is always truthy, so the
     nightly log claimed a save every night."""
-    first = db.save_forecast(a_forecast)
-    second = db.save_forecast(a_forecast)
+    first = db.save_today_forecast(a_forecast)
+    second = db.save_today_forecast(a_forecast)
 
     assert first is True
     assert second is False
@@ -38,19 +39,34 @@ def test_save_forecast_reports_whether_it_inserted(test_day, a_forecast):
 
 def test_get_forecast_filters_by_date(test_day, a_forecast):
     """Regression: the query once ignored its date and returned the first row."""
-    db.save_forecast(a_forecast)
+    db.save_today_forecast(a_forecast)
 
-    assert db.get_forecast(test_day)["date"] == test_day
-    assert db.get_forecast(NEVER_SAVED_DAY) is None
+    assert db.get_today_forecast(test_day)["date"] == test_day
+    assert db.get_today_forecast(NEVER_SAVED_DAY) is None
 
 
 def test_saved_forecast_keeps_its_values(test_day, a_forecast):
-    db.save_forecast(a_forecast)
-    row = db.get_forecast(test_day)
+    db.save_today_forecast(a_forecast)
+    row = db.get_today_forecast(test_day)
 
     assert row["max_temp"] == a_forecast["max_temp"]
     assert row["hours"] == 24
     assert row["fetched_at"] is not None
+
+
+def test_tomorrow_forecast_round_trips(test_day, a_forecast):
+    assert db.save_tomorrow_forecast(a_forecast) is True
+    assert db.save_tomorrow_forecast(a_forecast) is False
+    assert db.get_tomorrow_forecast(test_day)["max_temp"] == a_forecast["max_temp"]
+
+
+def test_the_two_forecast_tables_never_mix(test_day, a_forecast):
+    """A forecast saved as tomorrow's must never be read back as today's."""
+    db.save_tomorrow_forecast(a_forecast)
+    assert db.get_today_forecast(test_day) is None
+
+    db.save_today_forecast({**a_forecast, "max_temp": 99.0})
+    assert db.get_tomorrow_forecast(test_day)["max_temp"] == a_forecast["max_temp"]
 
 
 def test_save_summary_round_trips(test_day):

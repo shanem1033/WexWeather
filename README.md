@@ -1,6 +1,6 @@
 # WexWeather
 
-A local weather app for Co. Wexford, Ireland. Every night it saves tomorrow's forecast, compares it with 10 years of history for the same date, and has a language model write one sentence about what stands out, plus one positive event from history on that date.
+A local weather app for Co. Wexford, Ireland. Every night it saves the forecasts for the next two days, compares the first with 10 years of history for the same date, and has a language model write one sentence about what stands out, plus one positive event from history on that date.
 
 ## How the AI summaries work
 
@@ -29,20 +29,28 @@ If the model is unavailable, the forecast is still saved and the API still serve
 
 ## Database
 
-Four tables, each keyed by `(station_id, date)` apart from `stations`:
+Five tables, each keyed by `(station_id, date)` apart from `stations`:
 
 - `stations`: station details, stored once
 - `daily_weather`: what actually happened
-- `daily_forecast`: what was predicted, plus `hours` (readings the day was built from) and `fetched_at`
+- `forecast_today`: saved the night before a date and shown as that day's forecast; the summary is built from it
+- `forecast_tomorrow`: saved two nights before a date and only ever shown as "tomorrow"
 - `daily_summary`: the two generated sentences and the model that wrote them
+
+Both forecast tables also store `hours` (readings the day was built from) and `fetched_at`. A tomorrow forecast is never reused as today's: today always comes from the fresher fetch.
 
 Observations and forecasts are kept in separate tables so a prediction can never leak into the historical record that every statistic is built from. All inserts use `ON CONFLICT DO NOTHING`, so every script is safe to rerun.
 
 ## The nightly job
 
-`scripts/fetch_forecast.py` runs at 23:00. It fetches the forecast, saves **tomorrow** (the first day with a complete 24 hours available), then generates and saves the summaries.
+`scripts/fetch_forecast.py` runs at 23:00. One fetch covers about 9 days, and the next two days are complete hourly days. Run on the 9th, it saves:
 
-- **It refuses partial days.** Fewer than 24 hourly readings means it exits non-zero without saving.
+- the 10th to `forecast_today`, then generates the 10th's summary from it
+- the 11th to `forecast_tomorrow`
+
+Today itself is never saved, because the feed starts at the current hour.
+
+- **It refuses partial days.** A day with fewer than 24 hourly readings is not saved, the other day still is, and the job exits non-zero.
 - **It is idempotent.** Running it twice saves one row and skips the second.
 
 `run_daily.bat` is the wrapper Task Scheduler runs. It logs to `logs/forecast.log` and passes the exit code back. The task itself is version controlled in `task/wexweather_daily.xml`.
@@ -88,7 +96,7 @@ Run every script from the project root with `python -m`, so imports from `app/` 
 |---|---|
 | `uvicorn app.main:app --reload` | Run the API (docs at `http://127.0.0.1:8000/docs`) |
 | `python -m scripts.fetch_forecast` | Run the nightly job by hand |
-| `python -m scripts.report [YYYY-MM-DD]` | Fetch, summarise and print a report (`--show-only` skips fetching) |
+| `python -m scripts.report [YYYY-MM-DD]` | Run the nightly job now, then print a day's report (`--show-only` skips the job) |
 | `python -m app.summary [YYYY-MM-DD]` | Print the facts given to the model and its output, without saving |
 | `pytest` | Run the tests. No network; writes use 1900 dates in the dev database and clean up after |
 
@@ -106,8 +114,8 @@ The `UserId` in the XML is machine specific. On macOS or Linux, use cron to run 
 |---|---|---|
 | `GET` | `/data-range` | First and last day held, and the number of days |
 | `GET` | `/stats/{month}/{day}` | A calendar date across all years: average and record temperatures, average rain |
-| `GET` | `/summary` | Today's summary |
-| `GET` | `/summary/{YYYY-MM-DD}` | The summary for a given date, or 404 |
+| `GET` | `/today` | Today's forecast and summary (`null` where nothing is saved yet) |
+| `GET` | `/tomorrow` | Tomorrow's forecast |
 
 ## Project structure
 

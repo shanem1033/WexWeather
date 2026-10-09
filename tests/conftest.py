@@ -47,7 +47,8 @@ def test_day():
     def wipe():
         with get_connection() as conn:
             conn.execute("DELETE FROM daily_summary WHERE date = %(d)s", {"d": TEST_DAY})
-            conn.execute("DELETE FROM daily_forecast WHERE date = %(d)s", {"d": TEST_DAY})
+            conn.execute("DELETE FROM forecast_today WHERE date = %(d)s", {"d": TEST_DAY})
+            conn.execute("DELETE FROM forecast_tomorrow WHERE date = %(d)s", {"d": TEST_DAY})
 
     wipe()
     yield TEST_DAY
