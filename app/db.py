@@ -51,6 +51,39 @@ def get_day_stats(month, day, station_id=STATION_ID):
                 {"station_id": station_id, "month": month, "day": day},
         ).fetchone()
 
+def save_station(station):
+    """Add a station if it is not already stored. Returns True if a row was inserted."""
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO stations (station_id, name, county, latitude, longitude)
+            VALUES (%(station_id)s, %(name)s, %(county)s, %(latitude)s, %(longitude)s)
+            ON CONFLICT (station_id) DO NOTHING
+            """,
+            station,
+        )
+        return cur.rowcount == 1
+
+
+def save_weather_days(days):
+    """Save observed days, skipping any already stored. Returns how many were new."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.executemany(
+                """
+                INSERT INTO daily_weather
+                    (station_id, date, max_temp, min_temp, rain_mm,
+                     wind_speed_kt, max_gust_kt)
+                VALUES
+                    (%(station_id)s, %(date)s, %(max_temp)s, %(min_temp)s, %(rain_mm)s,
+                     %(wind_speed_kt)s, %(max_gust_kt)s)
+                ON CONFLICT (station_id, date) DO NOTHING
+                """,
+                days,
+            )
+            return cur.rowcount
+
+
 def get_forecast(day, station_id=STATION_ID):
     """Read back the saved forecast for one day, or None if none is saved."""
     with get_connection() as conn:
