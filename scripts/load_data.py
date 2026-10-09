@@ -7,7 +7,7 @@ from app.config import STATION
 CSV_PATH = "data/wexford_daily.csv"
 START_DATE = date(2016, 1, 1)
 
-# Column posiotions in CSV from 0
+# Column positions in CSV from 0
 COL_DATE, COL_MAXTP, COL_MINTP, COL_RAIN, COL_WDSP, COL_HG = 0, 2, 4, 8, 10, 16
 
 
@@ -15,6 +15,7 @@ def to_float(value):
     """Convert a CSV cell to a float, or None if it's blank."""
     value = value.strip()
     return float(value) if value else None
+
 
 def read_rows(path):
     rows = []
@@ -40,6 +41,7 @@ def read_rows(path):
                 "max_gust_kt": to_float(row[COL_HG]),
             })
     return rows
+
 
 def main():
     rows = read_rows(CSV_PATH)

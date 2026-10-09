@@ -28,7 +28,7 @@ def get_history_for_day(month, day, station_id=STATION_ID):
             WHERE station_id = %(station_id)s
                 AND EXTRACT(MONTH FROM date) = %(month)s
                 AND EXTRACT(DAY FROM date) = %(day)s
-            ORDER BY date 
+            ORDER BY date
             """,
             {"station_id": station_id, "month": month, "day": day},
         ).fetchall()
@@ -36,20 +36,21 @@ def get_history_for_day(month, day, station_id=STATION_ID):
 
 def get_day_stats(month, day, station_id=STATION_ID):
     with get_connection() as conn:
-            return conn.execute(
-                """
-                SELECT COUNT(*) AS years,
-                    ROUND(AVG(max_temp)::numeric, 1) AS avg_max_temp,
-                    MAX(max_temp) AS highest_max_temp,
-                    MIN(min_temp) AS lowest_min_temp, 
-                    ROUND(AVG(rain_mm)::numeric, 1) as avg_rain_mm
-                FROM daily_weather
-                WHERE station_id = %(station_id)s
-                    AND EXTRACT(MONTH FROM date) = %(month)s
-                    AND EXTRACT(DAY FROM date) = %(day)s
-                """,
-                {"station_id": station_id, "month": month, "day": day},
+        return conn.execute(
+            """
+            SELECT COUNT(*) AS years,
+                ROUND(AVG(max_temp)::numeric, 1) AS avg_max_temp,
+                MAX(max_temp) AS highest_max_temp,
+                MIN(min_temp) AS lowest_min_temp,
+                ROUND(AVG(rain_mm)::numeric, 1) AS avg_rain_mm
+            FROM daily_weather
+            WHERE station_id = %(station_id)s
+                AND EXTRACT(MONTH FROM date) = %(month)s
+                AND EXTRACT(DAY FROM date) = %(day)s
+            """,
+            {"station_id": station_id, "month": month, "day": day},
         ).fetchone()
+
 
 def save_station(station):
     """Add a station if it is not already stored. Returns True if a row was inserted."""
@@ -115,6 +116,7 @@ def save_forecast(summary, station_id=STATION_ID):
         )
         return cur.rowcount == 1
 
+
 def get_summary(day, station_id=STATION_ID):
     """Read back the saved summary for one day, or None if none is saved."""
     with get_connection() as conn:
@@ -127,6 +129,7 @@ def get_summary(day, station_id=STATION_ID):
             """,
             {"station_id": station_id, "day": day},
         ).fetchone()
+
 
 def save_summary(summary, station_id=STATION_ID):
     """Save one day's summaries. Returns True if a row was inserted."""
