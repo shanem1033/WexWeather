@@ -1,6 +1,7 @@
 """Ranking and fact rendering. Pure functions - no database, no network."""
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -84,7 +85,7 @@ def test_render_facts_rounds_only_for_display():
             "max_temp": 17.1, "min_temp": 11.4, "rain_mm": 9.1,
             "wind_speed_kt": 15.494024, "max_gust_kt": 41.986942,
         },
-        "history": {"years": 10, "avg_max_temp": "15.4", "avg_rain_mm": "3.9"},
+        "history": {"years": 10, "avg_max_temp": Decimal("15.4"), "avg_rain_mm": Decimal("3.9")},
         "comparisons": [{
             "field": "max_gust_kt", "direction": "high", "value": 41.986942,
             "rank": 1, "of": 11, "record": 39.0, "record_year": 2024,
@@ -96,6 +97,25 @@ def test_render_facts_rounds_only_for_display():
     assert "41.986942" not in text
     assert "1st highest of 11" in text
     assert "2024" in text
+
+
+def test_render_facts_survives_missing_readings():
+    """Regression: a day with no gust readings crashed the nightly job."""
+    context = {
+        "date": date(2026, 9, 29),
+        "forecast": {
+            "max_temp": 17.1, "min_temp": 11.4, "rain_mm": None,
+            "wind_speed_kt": 15.5, "max_gust_kt": None,
+        },
+        "history": {"years": 10, "avg_max_temp": Decimal("15.4"), "avg_rain_mm": None},
+        "comparisons": [],
+    }
+    text = render_facts(context)
+
+    assert "rain no reading" in text
+    assert "gust no reading" in text
+    assert "average rain no reading" in text
+    assert "max 17.1C" in text
 
 
 def test_summarise_without_a_context_makes_no_request():

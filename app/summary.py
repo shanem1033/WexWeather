@@ -129,6 +129,17 @@ LABELS = {
 }
 
 
+def _reading(value, unit, places=1):
+    """Format a value, or say plainly that there is none.
+
+    A None formatted with `:.1f` raises TypeError, so a day with no gust
+    readings would otherwise crash the nightly job.
+    """
+    if value is None:
+        return "no reading"
+    return f"{value:.{places}f}{unit}"
+
+
 def render_facts(context):
     """Turn a context dict into the plain text block the model reads.
 
@@ -141,11 +152,14 @@ def render_facts(context):
 
     lines = [
         f"Date: {day.day} {day:%B %Y}",
-        f"Forecast: max {forecast['max_temp']:.1f}C, min {forecast['min_temp']:.1f}C, "
-        f"rain {forecast['rain_mm']:.1f}mm, mean wind {forecast['wind_speed_kt']:.0f}kt, "
-        f"gust {forecast['max_gust_kt']:.0f}kt",
+        f"Forecast: max {_reading(forecast['max_temp'], 'C')}, "
+        f"min {_reading(forecast['min_temp'], 'C')}, "
+        f"rain {_reading(forecast['rain_mm'], 'mm')}, "
+        f"mean wind {_reading(forecast['wind_speed_kt'], 'kt', 0)}, "
+        f"gust {_reading(forecast['max_gust_kt'], 'kt', 0)}",
         f"History for this date: {history['years']} previous years, "
-        f"average max {history['avg_max_temp']}C, average rain {history['avg_rain_mm']}mm",
+        f"average max {_reading(history['avg_max_temp'], 'C')}, "
+        f"average rain {_reading(history['avg_rain_mm'], 'mm')}",
         "",
         "How the forecast ranks against those years:",
     ]

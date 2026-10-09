@@ -2,8 +2,23 @@
 
 from datetime import date
 
-from app.forecast import summarise_day
+from app.forecast import parse_forecast, summarise_day
 from tests.conftest import DISTANT_DAY, FULL_DAY
+
+# Two hours of a feed where the first hour has every reading and the second
+# has none. Real feeds can drop any element from any hour.
+PATCHY_XML = """<weatherdata><product>
+  <time from="2026-09-25T00:00:00Z" to="2026-09-25T00:00:00Z"><location>
+    <temperature value="12.0"/><windSpeed mps="5.0"/><windGust mps="10.0"/>
+  </location></time>
+  <time from="2026-09-25T01:00:00Z" to="2026-09-25T01:00:00Z"><location>
+  </location></time>
+  <time from="2026-09-25T00:00:00Z" to="2026-09-25T01:00:00Z"><location>
+    <precipitation value="0.4"/>
+  </location></time>
+  <time from="2026-09-25T01:00:00Z" to="2026-09-25T02:00:00Z"><location>
+  </location></time>
+</product></weatherdata>"""
 
 
 def test_instants_and_intervals_are_separated(parsed_sample):
@@ -26,6 +41,25 @@ def test_gusts_may_be_missing(parsed_sample):
     """windGust is optional in the feed, so None must survive parsing."""
     instants, _ = parsed_sample
     assert all(e["gust_kt"] is None or e["gust_kt"] >= 0 for e in instants)
+
+
+def test_missing_elements_parse_as_none():
+    instants, rain = parse_forecast(PATCHY_XML)
+    empty_hour = instants[1]
+    assert empty_hour["temp"] is None
+    assert empty_hour["wind_kt"] is None
+    assert empty_hour["gust_kt"] is None
+    assert rain[1]["rain_mm"] is None
+
+
+def test_missing_readings_are_skipped_not_fatal():
+    """One empty hour must not wipe out or crash the rest of the day."""
+    instants, rain = parse_forecast(PATCHY_XML)
+    day = summarise_day(instants, rain, FULL_DAY)
+    assert day["hours"] == 2
+    assert day["max_temp"] == day["min_temp"] == 12.0
+    assert day["rain_mm"] == 0.4
+    assert day["max_gust_kt"] == 10.0 * 1.94384
 
 
 def test_a_full_day_has_24_readings(parsed_sample):
