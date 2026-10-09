@@ -1,11 +1,8 @@
-import os
-
+# This file is the only place where the app directly connects to the DB, all other files call these functions and get plain python values back
 import psycopg
 from psycopg.rows import dict_row
-from dotenv import load_dotenv
 
-load_dotenv()
-DATABASE_URL = os.environ["DATABASE_URL"]
+from app.config import DATABASE_URL, STATION_ID
 
 
 def get_connection():
@@ -22,7 +19,7 @@ def get_data_range():
         ).fetchone()
 
 
-def get_history_for_day(month, day, station_id=1775):
+def get_history_for_day(month, day, station_id=STATION_ID):
     with get_connection() as conn:
         return conn.execute(
             """
@@ -37,7 +34,7 @@ def get_history_for_day(month, day, station_id=1775):
         ).fetchall()
 
 
-def get_day_stats(month, day, station_id=1775):
+def get_day_stats(month, day, station_id=STATION_ID):
     with get_connection() as conn:
             return conn.execute(
                 """
@@ -54,7 +51,7 @@ def get_day_stats(month, day, station_id=1775):
                 {"station_id": station_id, "month": month, "day": day},
         ).fetchone()
 
-def get_forecast(day, station_id=1775):
+def get_forecast(day, station_id=STATION_ID):
     """Read back the saved forecast for one day, or None if none is saved."""
     with get_connection() as conn:
         return conn.execute(
@@ -69,7 +66,7 @@ def get_forecast(day, station_id=1775):
         ).fetchone()
 
 
-def save_forecast(summary, station_id=1775):
+def save_forecast(summary, station_id=STATION_ID):
     with get_connection() as conn:
         cur = conn.execute(
             """
@@ -85,7 +82,7 @@ def save_forecast(summary, station_id=1775):
         )
         return cur.rowcount == 1
 
-def get_summary(day, station_id=1775):
+def get_summary(day, station_id=STATION_ID):
     """Read back the saved summary for one day, or None if none is saved."""
     with get_connection() as conn:
         return conn.execute(
@@ -98,7 +95,7 @@ def get_summary(day, station_id=1775):
             {"station_id": station_id, "day": day},
         ).fetchone()
 
-def save_summary(summary, station_id=1775):
+def save_summary(summary, station_id=STATION_ID):
     """Save one day's summaries. Returns True if a row was inserted."""
     with get_connection() as conn:
         cur = conn.execute(

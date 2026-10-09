@@ -1,9 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
 from app import db, onthisday, summary
+from app.config import STATION
 from app.forecast import fetch_forecast_xml, parse_forecast, summarise_day
-
-LAT, LON = 52.298, -6.497  # Johnstown Castle II
 
 
 class PartialDay(Exception):
@@ -17,7 +16,8 @@ class PartialDay(Exception):
 
 def fetch_and_save_forecast(day):
     """Fetch the forecast and save `day`. Returns True if a row was written."""
-    instants, rain = parse_forecast(fetch_forecast_xml(LAT, LON))
+    xml_text = fetch_forecast_xml(STATION["latitude"], STATION["longitude"])
+    instants, rain = parse_forecast(xml_text)
     forecast = summarise_day(instants, rain, day)
 
     if forecast["hours"] < 24:

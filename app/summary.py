@@ -1,9 +1,7 @@
 from google import genai
 
 from app import db, onthisday
-
-# db.py calls load_dotenv() on import, so GEMINI_API_KEY is already in the
-# environment by the time genai.Client() looks for it.
+from app.config import GEMINI_API_KEY
 
 # A lite model is plenty: it is handed the facts and only has to phrase them.
 # Free-tier quota is per model and small (20 requests/day), so the lighter
@@ -195,7 +193,7 @@ def _ask(prompt, model, label):
     for the transient 503s the free tier throws, and never raising - a bad
     night costs a sentence, not the pipeline.
     """
-    client = genai.Client(http_options=HTTP_OPTIONS)
+    client = genai.Client(api_key=GEMINI_API_KEY, http_options=HTTP_OPTIONS)
 
     try:
         response = client.interactions.create(model=model, input=prompt)

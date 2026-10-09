@@ -1,24 +1,12 @@
 import csv
-import os
 from datetime import date, datetime
 
 import psycopg
-from dotenv import load_dotenv
 
-load_dotenv()
-DATABASE_URL = os.environ["DATABASE_URL"]
+from app.config import DATABASE_URL, STATION
 
 CSV_PATH = "data/wexford_daily.csv"
 START_DATE = date(2016, 1, 1)
-
-
-STATION = {
-    "station_id": 1775,
-    "name": "Johnstown Castle II",
-    "county": "Wexford",
-    "latitude": 52.298,
-    "longitude": -6.497,
-}
 
 # Column posiotions in CSV from 0
 COL_DATE, COL_MAXTP, COL_MINTP, COL_RAIN, COL_WDSP, COL_HG = 0, 2, 4, 8, 10, 16
