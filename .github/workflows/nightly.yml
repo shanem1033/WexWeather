@@ -1,0 +1,29 @@
+name: Nightly forecast
+
+on:
+  schedule:
+    # Cron here is always UTC: 23:00 Irish summer time, 22:00 in winter.
+    # Either works, because the job works out its dates in UTC.
+    - cron: "0 22 * * *"
+  # Adds a "Run workflow" button in the Actions tab for running it by hand.
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - run: python -m scripts.fetch_forecast
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
