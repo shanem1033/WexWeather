@@ -8,7 +8,7 @@ services:
     buildCommand: pip install -r requirements.txt
     # Render tells the app which port to listen on through $PORT.
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /data-range
+    healthCheckPath: /health
     # Deploy a push to main only once its GitHub checks (the tests) pass.
     autoDeployTrigger: checksPass
     envVars:

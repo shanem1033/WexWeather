@@ -12,6 +12,10 @@ from tests.conftest import NEVER_SAVED_DAY
 client = TestClient(app)
 
 
+def test_health_needs_no_database():
+    assert client.get("/health").json() == {"status": "ok"}
+
+
 def test_data_range():
     response = client.get("/data-range")
     assert response.status_code == 200

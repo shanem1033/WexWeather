@@ -12,6 +12,13 @@ def _today():
     return datetime.now(timezone.utc).date()
 
 
+@app.get("/health")
+def health():
+    """Liveness check for the host. Deliberately skips the database, so a
+    database problem shows up as errors on real endpoints, not a dead app."""
+    return {"status": "ok"}
+
+
 @app.get("/data-range")
 def data_range():
     return db.get_data_range()

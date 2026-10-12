@@ -7,7 +7,9 @@ from app.config import DATABASE_URL, STATION_ID
 
 
 def get_connection():
-    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+    # Without a timeout an unreachable database hangs the request forever
+    # instead of failing with an error.
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row, connect_timeout=10)
 
 
 def get_data_range():
