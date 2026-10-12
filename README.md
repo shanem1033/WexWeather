@@ -13,7 +13,7 @@ If the model is unavailable, the forecast is still saved and the API still serve
 | Layer | Technology |
 |---|---|
 | Language | Python 3.11+ |
-| API | FastAPI, Uvicorn |
+| API | FastAPI, Uvicorn, hosted on Render |
 | Database | PostgreSQL 18 (Neon in production), psycopg 3 |
 | AI | Gemini API (`google-genai`, free tier) |
 | HTTP client | httpx |
@@ -56,6 +56,8 @@ Today itself is never saved, because the feed starts at the current hour.
 ## Deployment
 
 The nightly job runs on GitHub Actions (`.github/workflows/nightly.yml`) and writes to a hosted Postgres on [Neon](https://neon.tech), so it runs whether or not any local machine is on. Each run is logged in the repo's Actions tab, and a failed night shows as a failed run. It can also be started by hand from there with **Run workflow**.
+
+The API runs on Render's free tier, defined in `render.yaml`. A push to `main` deploys once the tests pass (`.github/workflows/tests.yml`). The free tier sleeps after about 15 idle minutes, so the first request after that takes up to a minute.
 
 The app reads one `DATABASE_URL`, and the environment decides which database that is: local Postgres in `.env` for development and tests, Neon in the GitHub secret for production. The workflow needs two repository secrets, `DATABASE_URL` and `GEMINI_API_KEY`.
 
@@ -106,8 +108,11 @@ Run every script from the project root with `python -m`, so imports from `app/` 
 
 ## API endpoints
 
+Live at **https://wexweather-api.onrender.com**, with interactive docs at [/docs](https://wexweather-api.onrender.com/docs).
+
 | Method | Path | Description |
 |---|---|---|
+| `GET` | `/health` | Liveness check for the host; does not touch the database |
 | `GET` | `/data-range` | First and last day held, and the number of days |
 | `GET` | `/stats/{month}/{day}` | A calendar date across all years: average and record temperatures, average rain |
 | `GET` | `/today` | Today's forecast and summary (`null` where nothing is saved yet) |
@@ -138,7 +143,7 @@ Each module owns one outside dependency: SQL lives only in `db.py`, Met Éireann
 ## Roadmap
 
 - [x] Nightly job in the cloud (GitHub Actions + Neon)
-- [ ] Host the API
+- [x] Host the API (Render)
 - [ ] Simple frontend
 
 ## Data attribution
