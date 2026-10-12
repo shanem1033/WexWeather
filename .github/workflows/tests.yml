@@ -1,0 +1,49 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # A throwaway Postgres that exists only for this run, so the tests never
+    # touch Neon. Its password is not a secret: nothing outside the run can
+    # reach it.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: wexweather
+          POSTGRES_PASSWORD: wexweather
+          POSTGRES_DB: wexweather
+        ports:
+          - 5432:5432
+        # Wait until Postgres accepts connections before running the steps.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://wexweather:wexweather@localhost:5432/wexweather
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # The tests read real history, so build the database the same way the
+      # README's setup does.
+      - run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f sql/schema.sql
+      - run: python -m scripts.load_data
+
+      - run: pytest
