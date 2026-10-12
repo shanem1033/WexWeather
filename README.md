@@ -14,11 +14,11 @@ If the model is unavailable, the forecast is still saved and the API still serve
 |---|---|
 | Language | Python 3.11+ |
 | API | FastAPI, Uvicorn |
-| Database | PostgreSQL 18, psycopg 3 |
+| Database | PostgreSQL 18 (Neon in production), psycopg 3 |
 | AI | Gemini API (`google-genai`, free tier) |
 | HTTP client | httpx |
 | Tests | pytest |
-| Scheduling | Windows Task Scheduler |
+| Scheduling | GitHub Actions |
 
 ## Data
 
@@ -43,7 +43,7 @@ Observations and forecasts are kept in separate tables so a prediction can never
 
 ## The nightly job
 
-`scripts/fetch_forecast.py` runs at 23:00. One fetch covers about 9 days, and the next two days are complete hourly days. Run on the 9th, it saves:
+`scripts/fetch_forecast.py` runs every night at 22:00 UTC. One fetch covers about 9 days, and the next two days are complete hourly days. Run on the 9th, it saves:
 
 - the 10th to `forecast_today`, then generates the 10th's summary from it
 - the 11th to `forecast_tomorrow`
@@ -53,7 +53,11 @@ Today itself is never saved, because the feed starts at the current hour.
 - **It refuses partial days.** A day with fewer than 24 hourly readings is not saved, the other day still is, and the job exits non-zero.
 - **It is idempotent.** Running it twice saves one row and skips the second.
 
-`run_daily.bat` is the wrapper Task Scheduler runs. It logs to `logs/forecast.log` and passes the exit code back. The task itself is version controlled in `task/wexweather_daily.xml`.
+## Deployment
+
+The nightly job runs on GitHub Actions (`.github/workflows/nightly.yml`) and writes to a hosted Postgres on [Neon](https://neon.tech), so it runs whether or not any local machine is on. Each run is logged in the repo's Actions tab, and a failed night shows as a failed run. It can also be started by hand from there with **Run workflow**.
+
+The app reads one `DATABASE_URL`, and the environment decides which database that is: local Postgres in `.env` for development and tests, Neon in the GitHub secret for production. The workflow needs two repository secrets, `DATABASE_URL` and `GEMINI_API_KEY`.
 
 ## Getting started
 
@@ -100,14 +104,6 @@ Run every script from the project root with `python -m`, so imports from `app/` 
 | `python -m app.summary [YYYY-MM-DD]` | Print the facts given to the model and its output, without saving |
 | `pytest` | Run the tests. No network; writes use 1900 dates in the dev database and clean up after |
 
-To schedule the nightly job on Windows:
-
-```bash
-schtasks /create /tn "WexWeather daily forecast" /xml task/wexweather_daily.xml /f
-```
-
-The `UserId` in the XML is machine specific. On macOS or Linux, use cron to run `python -m scripts.fetch_forecast`.
-
 ## API endpoints
 
 | Method | Path | Description |
@@ -134,16 +130,15 @@ scripts/
 sql/schema.sql       Database schema
 tests/               pytest suite
 data/                History CSV and a saved forecast for tests
-task/                Scheduled task definition
-run_daily.bat        Wrapper the scheduler runs
+.github/workflows/   Nightly job schedule
 ```
 
 Each module owns one outside dependency: SQL lives only in `db.py`, Met Éireann only in `forecast.py`, the model only in `summary.py`, HTTP only in `main.py`.
 
 ## Roadmap
 
-- [ ] Deployment
-- [ ] Scheduling with Dagster
+- [x] Nightly job in the cloud (GitHub Actions + Neon)
+- [ ] Host the API
 - [ ] Simple frontend
 
 ## Data attribution
