@@ -44,8 +44,8 @@ def _block(label, text):
 
 
 def _forecast_block(label, forecast):
-    """The three lines of numbers for one stored forecast row."""
-    return "\n".join([
+    """The lines of numbers for one stored forecast row."""
+    lines = [
         _block(label, f"max {_number(forecast['max_temp'], 'C')}   "
                       f"min {_number(forecast['min_temp'], 'C')}"),
         _block("", f"rain {_number(forecast['rain_mm'], 'mm')}   "
@@ -53,7 +53,10 @@ def _forecast_block(label, forecast):
                    f"gust {_number(forecast['max_gust_kt'], 'kt', 0)}"),
         _block("", f"from {forecast['hours']} hourly readings, "
                    f"fetched {forecast['fetched_at']:%d %b %H:%M}"),
-    ])
+    ]
+    if not forecast["full_day"]:
+        lines.append(_block("", "Full day not recorded."))
+    return "\n".join(lines)
 
 
 def render_report(day):

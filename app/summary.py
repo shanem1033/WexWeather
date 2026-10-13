@@ -31,7 +31,8 @@ compares with the same calendar date in previous years.
 Use ONLY the numbers above. Do not estimate, infer, or mention any weather
 detail that is not listed. Write one sentence of at most 25 words highlighting
 whatever is most notable. If nothing stands out - everything mid-table - say
-that plainly rather than inventing significance. No exclamation marks."""
+that plainly rather than inventing significance. If the facts say the full
+day was not recorded, do not call anything a record. No exclamation marks."""
 
 ON_THIS_DAY_PROMPT = """Below are real historical events that happened on this
 calendar date, taken from Wikipedia.
@@ -163,6 +164,11 @@ def render_facts(context):
         "",
         "How the forecast ranks against those years:",
     ]
+
+    # Missing hours can hide the day's real high or low. Absent means a
+    # context built by hand, so treat it as full.
+    if not forecast.get("full_day", True):
+        lines.insert(2, "Note: full day not recorded, so the forecast may miss the day's extremes.")
 
     for c in context["comparisons"]:
         label, unit = LABELS[c["field"]]

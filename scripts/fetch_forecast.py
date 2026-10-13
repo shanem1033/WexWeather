@@ -6,8 +6,16 @@ One fetch saves two forecasts. Run on the 9th, it saves:
   one the summary is written from
 - the 11th to forecast_tomorrow: shown as tomorrow's forecast on the 10th
 
-Both are complete hourly days at that point. Today itself never is, because
-the feed starts at the current hour.
+Both are complete hourly days at that point.
+
+It also fills anything the app is showing right now that is missing: today in
+forecast_today and the day after in forecast_tomorrow. On time, those already
+exist and are skipped. After a late run - one that slips past midnight acts
+as the next night's - they are the rows that would otherwise be blank.
+
+Today is never a full day, because the feed starts at the current hour, so a
+filled-in today is saved from the hours that are left and flagged as not a
+full day. Something is better than nothing, as long as it says so.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -17,10 +25,6 @@ from app.config import STATION
 from app.forecast import fetch_forecast_xml, parse_forecast, summarise_day
 
 
-class PartialDay(Exception):
-    """The forecast has fewer than 24 readings for the requested day."""
-
-
 def fetch_forecast():
     """Download and parse the full forecast: several days of readings."""
     xml_text = fetch_forecast_xml(STATION["latitude"], STATION["longitude"])
@@ -28,18 +32,23 @@ def fetch_forecast():
 
 
 def save_forecast_day(instants, rain, day, save, label):
-    """Summarise `day` and store it with `save`. Returns True if a row was written."""
+    """Summarise `day` and store it with `save`. Returns the hours it covers.
+
+    A day with fewer than 24 readings is still saved; the database flags it
+    as not a full day. A day with none is skipped: a row of nulls says nothing.
+    """
     forecast = summarise_day(instants, rain, day)
 
-    if forecast["hours"] < 24:
-        raise PartialDay(f"Only {forecast['hours']} hours for {day}, not saving {label}")
+    if forecast["hours"] == 0:
+        print(f"No readings for {day}, nothing to save as {label}")
+        return 0
 
+    note = "" if forecast["hours"] >= 24 else " (full day not recorded)"
     if save(forecast):
-        print(f"Saved {label} forecast for {day}: {forecast}")
-        return True
-
-    print(f"{label.capitalize()} forecast for {day} already saved, skipped")
-    return False
+        print(f"Saved {label} forecast for {day}{note}: {forecast}")
+    else:
+        print(f"{label.capitalize()} forecast for {day} already saved, skipped")
+    return forecast["hours"]
 
 
 def generate_and_save_summaries(day):
@@ -72,26 +81,32 @@ def generate_and_save_summaries(day):
 
 
 def run(today):
-    """Save both forecasts and the summary. Returns a list of problems, empty if none.
+    """Save the forecasts and summaries. Returns a list of problems, empty if none.
 
-    A partial day is collected rather than raised, so one bad day cannot stop
-    the other from being saved or the summary from being written.
+    Only the two days this run exists for are expected to be full, so only
+    they count as problems when partial. The fill-ins are partial by nature.
     """
     instants, rain = fetch_forecast()
-    problems = []
+    tomorrow = today + timedelta(days=1)
+    day_after = today + timedelta(days=2)
 
-    days = [
-        (today + timedelta(days=1), db.save_today_forecast, "today"),
-        (today + timedelta(days=2), db.save_tomorrow_forecast, "tomorrow"),
+    # (day, save, label, expected to be a full day)
+    targets = [
+        (today, db.save_today_forecast, "today", False),
+        (tomorrow, db.save_today_forecast, "today", True),
+        (tomorrow, db.save_tomorrow_forecast, "tomorrow", False),
+        (day_after, db.save_tomorrow_forecast, "tomorrow", True),
     ]
-    for day, save, label in days:
-        try:
-            save_forecast_day(instants, rain, day, save, label)
-        except PartialDay as error:
-            problems.append(str(error))
 
-    # Bails out by itself if the today forecast was not saved.
-    generate_and_save_summaries(today + timedelta(days=1))
+    problems = []
+    for day, save, label, expected_full in targets:
+        hours = save_forecast_day(instants, rain, day, save, label)
+        if expected_full and hours < 24:
+            problems.append(f"Only {hours} hours for {day} ({label} forecast)")
+
+    # Each bails out by itself if already saved or there is no forecast.
+    generate_and_save_summaries(today)
+    generate_and_save_summaries(tomorrow)
     return problems
 
 

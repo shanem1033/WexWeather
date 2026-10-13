@@ -48,9 +48,9 @@ Observations and forecasts are kept in separate tables so a prediction can never
 - the 10th to `forecast_today`, then generates the 10th's summary from it
 - the 11th to `forecast_tomorrow`
 
-Today itself is never saved, because the feed starts at the current hour.
+It also fills in anything the app is showing right now that is missing: today in `forecast_today` and tomorrow in `forecast_tomorrow`. On time, those rows already exist and are skipped. If a run starts late and slips past midnight, they are what would otherwise be blank, so a late run leaves no gap.
 
-- **It refuses partial days.** A day with fewer than 24 hourly readings is not saved, the other day still is, and the job exits non-zero.
+- **Partial days are kept and flagged.** Today is never complete, because the feed starts at the current hour, so a filled-in today is built from the hours left. Any row with fewer than 24 hourly readings comes back with `full_day: false`, the report prints "Full day not recorded", and the model is told not to call anything a record. A target day that is unexpectedly partial is saved too, but makes the run exit non-zero.
 - **It is idempotent.** Running it twice saves one row and skips the second.
 
 ## Deployment

@@ -69,6 +69,14 @@ def test_the_two_forecast_tables_never_mix(test_day, a_forecast):
     assert db.get_tomorrow_forecast(test_day)["max_temp"] == a_forecast["max_temp"]
 
 
+def test_full_day_flag_follows_the_hours(test_day, a_forecast):
+    db.save_today_forecast({**a_forecast, "hours": 21})
+    db.save_tomorrow_forecast(a_forecast)
+
+    assert db.get_today_forecast(test_day)["full_day"] is False
+    assert db.get_tomorrow_forecast(test_day)["full_day"] is True
+
+
 def test_save_summary_round_trips(test_day):
     written = db.save_summary({
         "date": test_day,

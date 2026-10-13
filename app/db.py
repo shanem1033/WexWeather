@@ -115,7 +115,7 @@ def _get_forecast(table, day, station_id):
     query = sql.SQL(
         """
         SELECT date, max_temp, min_temp, rain_mm, wind_speed_kt, max_gust_kt,
-               hours, fetched_at
+               hours, hours >= 24 AS full_day, fetched_at
         FROM {table}
         WHERE station_id = %(station_id)s
             AND date = %(day)s

@@ -118,6 +118,22 @@ def test_render_facts_survives_missing_readings():
     assert "max 17.1C" in text
 
 
+def test_render_facts_notes_a_partial_day():
+    context = {
+        "date": date(2026, 9, 29),
+        "forecast": {
+            "max_temp": 17.1, "min_temp": 11.4, "rain_mm": 0.0,
+            "wind_speed_kt": 15.5, "max_gust_kt": 30.0, "full_day": False,
+        },
+        "history": {"years": 10, "avg_max_temp": Decimal("15.4"), "avg_rain_mm": Decimal("3.9")},
+        "comparisons": [],
+    }
+    assert "full day not recorded" in render_facts(context)
+
+    context["forecast"]["full_day"] = True
+    assert "full day not recorded" not in render_facts(context)
+
+
 def test_summarise_without_a_context_makes_no_request():
     """Short-circuits before touching the network, so this is safe to run."""
     assert summarise(None) is None

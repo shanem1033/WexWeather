@@ -83,6 +83,18 @@ def test_one_sentence_missing_does_not_blank_the_other(capsys, test_day, a_forec
     assert FACT_SENTENCE in out
 
 
+def test_a_partial_day_says_so(capsys, test_day, a_forecast):
+    db.save_today_forecast({**a_forecast, "hours": 21})
+    render_report(test_day)
+    assert "Full day not recorded" in capsys.readouterr().out
+
+
+def test_a_full_day_has_no_note(capsys, test_day, a_forecast):
+    db.save_today_forecast(a_forecast)
+    render_report(test_day)
+    assert "Full day not recorded" not in capsys.readouterr().out
+
+
 def test_tomorrow_is_read_from_its_own_table(capsys, test_day, a_forecast):
     """The report for the day before TEST_DAY shows TEST_DAY as tomorrow."""
     db.save_tomorrow_forecast(a_forecast)
