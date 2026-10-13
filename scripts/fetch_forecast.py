@@ -1,4 +1,4 @@
-"""Nightly job, run at 22:00 UTC by GitHub Actions.
+"""Nightly job, run at 20:17 UTC by GitHub Actions.
 
 One fetch saves two forecasts. Run on the 9th, it saves:
 

@@ -2,9 +2,12 @@ name: Nightly forecast
 
 on:
   schedule:
-    # Cron here is always UTC: 23:00 Irish summer time, 22:00 in winter.
-    # Either works, because the job works out its dates in UTC.
-    - cron: "0 22 * * *"
+    # Cron here is always UTC. Scheduled runs can start hours late (one ran
+    # at 02:46 instead of 22:00), and the job works out its dates when it
+    # starts, so a run that slips past midnight acts as the next night's.
+    # 20:17 leaves nearly four hours of slack, and avoiding the top of the
+    # hour dodges the busiest time for GitHub's scheduler.
+    - cron: "17 20 * * *"
   # Adds a "Run workflow" button in the Actions tab for running it by hand.
   workflow_dispatch:
 

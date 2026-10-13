@@ -43,7 +43,7 @@ Observations and forecasts are kept in separate tables so a prediction can never
 
 ## The nightly job
 
-`scripts/fetch_forecast.py` runs every night at 22:00 UTC. One fetch covers about 9 days, and the next two days are complete hourly days. Run on the 9th, it saves:
+`scripts/fetch_forecast.py` runs every night at 20:17 UTC, early and off the hour because GitHub can start scheduled runs hours late. One fetch covers about 9 days, and the next two days are complete hourly days. Run on the 9th, it saves:
 
 - the 10th to `forecast_today`, then generates the 10th's summary from it
 - the 11th to `forecast_tomorrow`
