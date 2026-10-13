@@ -118,6 +118,27 @@ def test_render_facts_survives_missing_readings():
     assert "max 17.1C" in text
 
 
+def test_render_facts_says_records_only_cover_the_history():
+    """Regression: the model called a 10-year high "record-breaking"."""
+    context = {
+        "date": date(2026, 10, 13),
+        "forecast": {
+            "max_temp": 16.3, "min_temp": 9.6, "rain_mm": 2.5,
+            "wind_speed_kt": 11.4, "max_gust_kt": 32.9,
+        },
+        "history": {"years": 10, "avg_max_temp": Decimal("13.9"), "avg_rain_mm": Decimal("6.9")},
+        "comparisons": [{
+            "field": "max_temp", "direction": "high", "value": 16.3,
+            "rank": 1, "of": 11, "record": 15.6, "record_year": 2017,
+        }],
+    }
+    text = render_facts(context)
+
+    assert "the last 10 years only" in text
+    assert "previous 10-year highest 15.6C in 2017" in text
+    assert "previous record" not in text
+
+
 def test_render_facts_notes_a_partial_day():
     context = {
         "date": date(2026, 9, 29),

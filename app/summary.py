@@ -31,8 +31,11 @@ compares with the same calendar date in previous years.
 Use ONLY the numbers above. Do not estimate, infer, or mention any weather
 detail that is not listed. Write one sentence of at most 25 words highlighting
 whatever is most notable. If nothing stands out - everything mid-table - say
-that plainly rather than inventing significance. If the facts say the full
-day was not recorded, do not call anything a record. No exclamation marks."""
+that plainly rather than inventing significance. The history covers only the
+years listed, so a record is a record for those years, not of all time: if you
+mention one, say how many years it covers, for example "the warmest in 10
+years". If the facts say the full day was not recorded, do not call anything a
+record. No exclamation marks."""
 
 ON_THIS_DAY_PROMPT = """Below are real historical events that happened on this
 calendar date, taken from Wikipedia.
@@ -158,7 +161,7 @@ def render_facts(context):
         f"rain {_reading(forecast['rain_mm'], 'mm')}, "
         f"mean wind {_reading(forecast['wind_speed_kt'], 'kt', 0)}, "
         f"gust {_reading(forecast['max_gust_kt'], 'kt', 0)}",
-        f"History for this date: {history['years']} previous years, "
+        f"History for this date: the last {history['years']} years only, "
         f"average max {_reading(history['avg_max_temp'], 'C')}, "
         f"average rain {_reading(history['avg_rain_mm'], 'mm')}",
         "",
@@ -175,7 +178,8 @@ def render_facts(context):
         end = "highest" if c["direction"] == "high" else "lowest"
         lines.append(
             f"- {label} {c['value']:.1f}{unit} is the {_ordinal(c['rank'])} {end} "
-            f"of {c['of']} (previous record {c['record']:.1f}{unit} in {c['record_year']})"
+            f"of {c['of']} (previous {history['years']}-year {end} "
+            f"{c['record']:.1f}{unit} in {c['record_year']})"
         )
 
     return "\n".join(lines)
