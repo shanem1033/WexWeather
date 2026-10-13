@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en-IE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wexford weather</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --harbour: #1E3A4C;
+    --foam: #EEF3F1;
+    --foam-muted: #A9BEC4;
+    --mist: #D9E4E1;
+    --ink: #1A2B33;
+    --ink-muted: #4F6870;
+    --gorse: #E3B23C;
+  }
+  @media (prefers-color-scheme: dark) {
+    /* Still clearly lighter than the harbour panel, so the split holds. */
+    :root {
+      --mist: #36535F;
+      --ink: #EEF3F1;
+      --ink-muted: #C2D2D5;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
+    line-height: 1.5;
+    background: var(--harbour);
+    color: var(--foam);
+  }
+
+  main {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    min-height: 100vh;
+  }
+  @media (max-width: 760px) {
+    main { grid-template-columns: 1fr; min-height: 0; }
+  }
+
+  .panel { padding: clamp(1.5rem, 5vw, 4rem); }
+  .panel-today { background: var(--harbour); color: var(--foam); --muted: var(--foam-muted); }
+  .panel-tomorrow { background: var(--mist); color: var(--ink); --muted: var(--ink-muted); }
+
+  h1, h2, .temps {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    margin: 0;
+  }
+  h1 { font-size: 1rem; font-weight: 500; color: var(--muted); margin-bottom: 2.5rem; }
+  h2 { font-size: 1.75rem; font-weight: 700; line-height: 1.2; }
+  .date { margin: 0.25rem 0 0; color: var(--muted); }
+
+  .temps {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+    margin-top: 2rem;
+  }
+  .panel-today .temps { font-size: clamp(4.5rem, 13vw, 9rem); }
+  .panel-tomorrow .temps { font-size: clamp(3rem, 8vw, 5rem); }
+  .temps .low { font-size: 0.45em; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+
+  .readings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2rem;
+    margin: 1.5rem 0 0;
+  }
+  .readings div { display: flex; flex-direction: column; }
+  .readings dt { color: var(--muted); font-size: 0.875rem; }
+  .readings dd { margin: 0; font-size: 1.25rem; font-weight: 700; }
+
+  .note {
+    margin: 1.25rem 0 0;
+    padding-left: 0.75rem;
+    border-left: 3px solid var(--gorse);
+    font-size: 0.9375rem;
+  }
+
+  .summary {
+    margin: 3rem 0 0;
+    max-width: 32ch;
+    font-size: clamp(1.25rem, 2.4vw, 1.625rem);
+    line-height: 1.4;
+    padding-left: 1rem;
+    border-left: 4px solid var(--gorse);
+  }
+  .on-this-day { margin: 1.5rem 0 0; max-width: 60ch; color: var(--muted); }
+  .on-this-day strong { color: var(--foam); font-weight: 700; }
+
+  .status { margin-top: 2rem; color: var(--muted); max-width: 45ch; }
+
+  footer {
+    grid-column: 1 / -1;
+    padding: 1.5rem clamp(1.5rem, 5vw, 4rem);
+    font-size: 0.875rem;
+    color: var(--foam-muted);
+    background: var(--harbour);
+    border-top: 1px solid rgba(238, 243, 241, 0.15);
+  }
+  footer p { margin: 0; max-width: 75ch; }
+  a { color: inherit; text-underline-offset: 0.2em; }
+  a:focus-visible { outline: 3px solid var(--gorse); outline-offset: 3px; border-radius: 2px; }
+
+  [hidden] { display: none !important; }
+
+  /* The one moment of motion: the numbers settle in once they arrive. */
+  .loaded .temps { animation: settle 500ms ease-out; }
+  @keyframes settle {
+    from { opacity: 0; transform: translateY(0.15em); }
+    to { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .loaded .temps { animation: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <section class="panel panel-today" id="today" aria-labelledby="today-heading">
+    <h1>Wexford weather, from Johnstown Castle</h1>
+    <h2 id="today-heading">Today</h2>
+    <p class="date" data-field="date"></p>
+
+    <p class="status" data-field="status">Loading today's forecast…</p>
+
+    <div data-field="forecast" hidden>
+      <p class="temps"><span data-field="max"></span> <span class="low" data-field="min"></span></p>
+      <dl class="readings">
+        <div><dt>Rain</dt><dd data-field="rain"></dd></div>
+        <div><dt>Wind</dt><dd data-field="wind"></dd></div>
+        <div><dt>Gusts up to</dt><dd data-field="gust"></dd></div>
+      </dl>
+      <p class="note" data-field="partial" hidden>Full day not recorded, so the high or low may be missing.</p>
+    </div>
+
+    <p class="summary" data-field="summary" hidden></p>
+    <p class="on-this-day" data-field="on-this-day" hidden></p>
+  </section>
+
+  <section class="panel panel-tomorrow" id="tomorrow" aria-labelledby="tomorrow-heading">
+    <h2 id="tomorrow-heading">Tomorrow</h2>
+    <p class="date" data-field="date"></p>
+
+    <p class="status" data-field="status">Loading tomorrow's forecast…</p>
+
+    <div data-field="forecast" hidden>
+      <p class="temps"><span data-field="max"></span> <span class="low" data-field="min"></span></p>
+      <dl class="readings">
+        <div><dt>Rain</dt><dd data-field="rain"></dd></div>
+        <div><dt>Wind</dt><dd data-field="wind"></dd></div>
+        <div><dt>Gusts up to</dt><dd data-field="gust"></dd></div>
+      </dl>
+      <p class="note" data-field="partial" hidden>Full day not recorded, so the high or low may be missing.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Forecast and history from Met Éireann, under CC BY 4.0. Before heading out,
+      check the <a href="https://www.met.ie/warnings">current weather warnings at met.ie</a>.
+    </p>
+  </footer>
+</main>
+
+<script>
+  // The free host sleeps when idle, so the first request can take a while.
+  const SLOW_MS = 4000;
+
+  function field(section, name) {
+    return section.querySelector(`[data-field="${name}"]`);
+  }
+
+  function reading(value, unit, places) {
+    if (value === null || value === undefined) return "no reading";
+    return `${Number(value).toFixed(places)}${unit}`;
+  }
+
+  function dayText(iso) {
+    // Dates are UTC days; read them as UTC so the weekday never shifts.
+    return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-IE", {
+      weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
+    });
+  }
+
+  function showForecast(section, forecast) {
+    field(section, "max").textContent = reading(forecast.max_temp, "°", 0);
+    field(section, "min").textContent = `low ${reading(forecast.min_temp, "°", 0)}`;
+    field(section, "rain").textContent = reading(forecast.rain_mm, " mm", 1);
+    field(section, "wind").textContent = reading(forecast.wind_speed_kt, " knots", 0);
+    field(section, "gust").textContent = reading(forecast.max_gust_kt, " knots", 0);
+    field(section, "partial").hidden = forecast.full_day;
+    field(section, "forecast").hidden = false;
+  }
+
+  async function load(path, sectionId, emptyText, render) {
+    const section = document.getElementById(sectionId);
+    const status = field(section, "status");
+    const slow = setTimeout(() => {
+      status.textContent = "Still loading. The server sleeps when nobody has visited for a while, so this can take up to a minute.";
+    }, SLOW_MS);
+
+    try {
+      const response = await fetch(path);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+
+      field(section, "date").textContent = dayText(data.date);
+      if (data.forecast) {
+        showForecast(section, data.forecast);
+        status.hidden = true;
+      } else {
+        status.textContent = emptyText;
+      }
+      if (render) render(section, data);
+      section.classList.add("loaded");
+    } catch (error) {
+      status.textContent = "The forecast couldn't be loaded. Refresh the page to try again.";
+    } finally {
+      clearTimeout(slow);
+    }
+  }
+
+  function showSummary(section, data) {
+    if (!data.summary) return;
+    const { weather_summary, on_this_day } = data.summary;
+    if (weather_summary) {
+      const summary = field(section, "summary");
+      summary.textContent = weather_summary;
+      summary.hidden = false;
+    }
+    if (on_this_day) {
+      const fact = field(section, "on-this-day");
+      const label = document.createElement("strong");
+      label.textContent = "On this day: ";
+      fact.replaceChildren(label, document.createTextNode(on_this_day));
+      fact.hidden = false;
+    }
+  }
+
+  load("/today", "today", "No forecast has been saved for today yet. It's saved the evening before.", showSummary);
+  load("/tomorrow", "tomorrow", "No forecast has been saved for tomorrow yet. It's saved two evenings before.");
+</script>
+</body>
+</html>

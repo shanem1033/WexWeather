@@ -12,6 +12,13 @@ from tests.conftest import NEVER_SAVED_DAY
 client = TestClient(app)
 
 
+def test_the_page_is_served_at_the_root():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert 'id="today"' in response.text and 'id="tomorrow"' in response.text
+
+
 def test_health_needs_no_database():
     assert client.get("/health").json() == {"status": "ok"}
 

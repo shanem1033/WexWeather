@@ -1,15 +1,25 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 from app import db
 
 app = FastAPI(title="WexWeather")
 
+INDEX_PAGE = Path(__file__).parent / "static" / "index.html"
+
 
 def _today():
     """Today's date in UTC, matching how forecast days are defined."""
     return datetime.now(timezone.utc).date()
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    """The web page. It calls /today and /tomorrow from the browser."""
+    return FileResponse(INDEX_PAGE)
 
 
 @app.get("/health")

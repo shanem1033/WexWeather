@@ -108,10 +108,11 @@ Run every script from the project root with `python -m`, so imports from `app/` 
 
 ## API endpoints
 
-Live at **https://wexweather-api.onrender.com**, with interactive docs at [/docs](https://wexweather-api.onrender.com/docs).
+Live at **https://wexweather-api.onrender.com**: the root is the web page, with interactive API docs at [/docs](https://wexweather-api.onrender.com/docs).
 
 | Method | Path | Description |
 |---|---|---|
+| `GET` | `/` | The web page: today and tomorrow, side by side |
 | `GET` | `/health` | Liveness check for the host; does not touch the database |
 | `GET` | `/data-range` | First and last day held, and the number of days |
 | `GET` | `/stats/{month}/{day}` | A calendar date across all years: average and record temperatures, average rain |
@@ -128,6 +129,7 @@ app/
   forecast.py        Met Éireann forecast fetching and parsing
   summary.py         Ranking, fact rendering, model calls
   onthisday.py       Historical events for a date
+  static/index.html  The web page
 scripts/
   load_data.py       Load the CSV history
   fetch_forecast.py  Nightly job
@@ -144,7 +146,8 @@ Each module owns one outside dependency: SQL lives only in `db.py`, Met Éireann
 
 - [x] Nightly job in the cloud (GitHub Actions + Neon)
 - [x] Host the API (Render)
-- [ ] Simple frontend
+- [x] Simple frontend
+- [ ] Show Met Éireann's warnings on the page
 
 ## Data attribution
 
