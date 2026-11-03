@@ -1,6 +1,6 @@
 # WexWeather
 
-A local weather app for Co. Wexford, Ireland. Every night it saves the forecasts for the next two days, compares the first with 10 years of history for the same date, and has a language model write one sentence about what stands out, plus one positive event from history on that date.
+A local weather app for Co. Wexford, Ireland. Every night it saves the forecasts for the next two days, compares the first with 10 years of history for the same date, and has a language model write one sentence about what stands out, plus one positive event from history on that date. A web page shows today and tomorrow.
 
 ## How the AI summaries work
 
@@ -12,12 +12,13 @@ If the model is unavailable, the forecast is still saved and the API still serve
 
 | Layer | Technology |
 |---|---|
-| Language | Python 3.11+ |
+| Language | Python 3.13 |
 | API | FastAPI, Uvicorn, hosted on Render |
+| Web page | One static HTML file, plain JavaScript, served by the API |
 | Database | PostgreSQL 18 (Neon in production), psycopg 3 |
 | AI | Gemini API (`google-genai`, free tier) |
 | HTTP client | httpx |
-| Tests | pytest |
+| Tests | pytest, run on GitHub Actions |
 | Scheduling | GitHub Actions |
 
 ## Data
@@ -25,7 +26,7 @@ If the model is unavailable, the forecast is still saved and the API still serve
 - **History:** daily records from Met Éireann's Johnstown Castle II station (1775), 1 January 2016 to 31 August 2026, 3,896 days. Earlier years are excluded because their wind readings point to a faulty sensor.
 - **Forecast:** Met Éireann's open location forecast API, so forecasts and history come from the same source. Hourly readings are reduced to one day in the same shape as the history: max/min temperature, total rain, mean wind and highest gust.
 - **Missing readings are `NULL`, never zero.** Zero would claim a dry, calm day. `NULL` means "no reading" and is carried through to the API and the summaries.
-- **Units and days:** wind is stored in knots (forecasts are converted from m/s), and days are UTC days, matching Met Éireann's records.
+- **Units and days:** wind is stored in knots (forecasts are converted from m/s) and shown in km/h on the web page. Days are UTC days, matching Met Éireann's records.
 
 ## Database
 
@@ -50,14 +51,14 @@ Observations and forecasts are kept in separate tables so a prediction can never
 
 It also fills in anything the app is showing right now that is missing: today in `forecast_today` and tomorrow in `forecast_tomorrow`. On time, those rows already exist and are skipped. If a run starts late and slips past midnight, they are what would otherwise be blank, so a late run leaves no gap.
 
-- **Partial days are kept and flagged.** Today is never complete, because the feed starts at the current hour, so a filled-in today is built from the hours left. Any row with fewer than 24 hourly readings comes back with `full_day: false`, the report prints "Full day not recorded", and the model is told not to call anything a record. A target day that is unexpectedly partial is saved too, but makes the run exit non-zero.
+- **Partial days are kept and flagged.** Today is never complete, because the feed starts at the current hour, so a filled-in today is built from the hours left. Any row with fewer than 24 hourly readings comes back with `full_day: false`, the web page and report say "Full day not recorded", and the model is told not to call anything a record. A target day that is unexpectedly partial is saved too, but makes the run exit non-zero.
 - **It is idempotent.** Running it twice saves one row and skips the second.
 
 ## Deployment
 
 The nightly job runs on GitHub Actions (`.github/workflows/nightly.yml`) and writes to a hosted Postgres on [Neon](https://neon.tech), so it runs whether or not any local machine is on. Each run is logged in the repo's Actions tab, and a failed night shows as a failed run. It can also be started by hand from there with **Run workflow**.
 
-The API runs on Render's free tier, defined in `render.yaml`. A push to `main` deploys once the tests pass (`.github/workflows/tests.yml`). The free tier sleeps after about 15 idle minutes, so the first request after that takes up to a minute.
+The API and web page run on Render's free tier, defined in `render.yaml`. Every push runs the tests (`.github/workflows/tests.yml`) against a throwaway Postgres loaded with the full history, and a push to `main` deploys only once they pass. The free tier sleeps after about 15 idle minutes, so the first request after that takes up to a minute.
 
 The app reads one `DATABASE_URL`, and the environment decides which database that is: local Postgres in `.env` for development and tests, Neon in the GitHub secret for production. The workflow needs two repository secrets, `DATABASE_URL` and `GEMINI_API_KEY`.
 
@@ -100,11 +101,11 @@ Run every script from the project root with `python -m`, so imports from `app/` 
 
 | Command | What it does |
 |---|---|
-| `uvicorn app.main:app --reload` | Run the API (docs at `http://127.0.0.1:8000/docs`) |
+| `uvicorn app.main:app --reload` | Run the API and web page (page at `http://127.0.0.1:8000`, docs at `/docs`) |
 | `python -m scripts.fetch_forecast` | Run the nightly job by hand |
 | `python -m scripts.report [YYYY-MM-DD]` | Run the nightly job now, then print a day's report (`--show-only` skips the job) |
 | `python -m app.summary [YYYY-MM-DD]` | Print the facts given to the model and its output, without saving |
-| `pytest` | Run the tests. No network; writes use 1900 dates in the dev database and clean up after |
+| `pytest` | Run the tests. No network; they need the history loaded, and writes use 1900 dates in the dev database and clean up after |
 
 ## API endpoints
 
@@ -137,7 +138,8 @@ scripts/
 sql/schema.sql       Database schema
 tests/               pytest suite
 data/                History CSV and a saved forecast for tests
-.github/workflows/   Nightly job schedule
+.github/workflows/   Nightly job and tests
+render.yaml          Render deployment for the API
 ```
 
 Each module owns one outside dependency: SQL lives only in `db.py`, Met Éireann only in `forecast.py`, the model only in `summary.py`, HTTP only in `main.py`.

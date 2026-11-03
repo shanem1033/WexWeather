@@ -183,6 +183,14 @@
     return `${Number(value).toFixed(places)}${unit}`;
   }
 
+  // Wind is stored in knots; show it in km/h.
+  const KT_TO_KMH = 1.852;
+
+  function kmh(knots) {
+    if (knots === null || knots === undefined) return knots;
+    return knots * KT_TO_KMH;
+  }
+
   function dayText(iso) {
     // Dates are UTC days; read them as UTC so the weekday never shifts.
     return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-IE", {
@@ -194,8 +202,8 @@
     field(section, "max").textContent = reading(forecast.max_temp, "°", 0);
     field(section, "min").textContent = `low ${reading(forecast.min_temp, "°", 0)}`;
     field(section, "rain").textContent = reading(forecast.rain_mm, " mm", 1);
-    field(section, "wind").textContent = reading(forecast.wind_speed_kt, " knots", 0);
-    field(section, "gust").textContent = reading(forecast.max_gust_kt, " knots", 0);
+    field(section, "wind").textContent = reading(kmh(forecast.wind_speed_kt), " km/h", 0);
+    field(section, "gust").textContent = reading(kmh(forecast.max_gust_kt), " km/h", 0);
     field(section, "partial").hidden = forecast.full_day;
     field(section, "forecast").hidden = false;
   }
